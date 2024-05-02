@@ -59,7 +59,7 @@ jobs:
       - run: git submodule update --init --recursive
       - name: Setup torch
         run: |
-          curl -L https://github.com/mlverse/libtorch-mac-m1/releases/download/LibTorchOpenMP/libtorch-v2.0.0.zip -o libtorch.zip
+          curl -L https://anaconda.org/pytorch/pytorch/2.0.0/download/osx-64/pytorch-2.0.0-py3.10_0.tar.bz2 -o libtorch.zip
           unzip libtorch.zip
       - name: Setup puredata
         run: |
