@@ -59,7 +59,7 @@ jobs:
       - run: git submodule update --init --recursive
       - name: Setup torch
         run: |
-          curl -L https://anaconda.org/pytorch/pytorch/2.0.0/download/osx-64/pytorch-2.0.0-py3.10_0.tar.bz2 -o libtorch.zip
+          curl -L https://anaconda.org/pytorch/pytorch/2.0.0/download/osx-64/pytorch-2.0.0-py3.10_0.tar.bz2 | tar -xv
           unzip libtorch.zip
       - name: Setup puredata
         run: |
@@ -69,7 +69,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake ../src -DCMAKE_PREFIX_PATH=${{ github.workspace }}/libtorch -DCMAKE_BUILD_TYPE=Release -DPUREDATA_INCLUDE_DIR=${{ github.workspace }}/puredata_include 
+          cmake ../src -DCMAKE_PREFIX_PATH=${{ github.workspace }}/lib/python3.10/site-packages/torch -DCMAKE_BUILD_TYPE=Release -DPUREDATA_INCLUDE_DIR=${{ github.workspace }}/puredata_include 
           make
       - name: Max/MSP Package creation
         run: |
