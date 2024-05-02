@@ -9,7 +9,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4        
+        with:
+          fetch-tags: true
       - run: git submodule update --init --recursive
       - name: Setup torch
         run: |
@@ -49,7 +51,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
       - run: git submodule update --init --recursive
       - name: Setup torch
         run: |
@@ -90,7 +94,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
       - run: git submodule update --init --recursive
       - name: Setup torch
         run: |
