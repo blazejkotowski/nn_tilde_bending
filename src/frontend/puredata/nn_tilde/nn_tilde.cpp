@@ -27,6 +27,8 @@ typedef struct _nn_tilde {
   t_object x_obj;
   t_sample f;
 
+  t_outlet *m_outlet; // Outlet for registered attributes
+
   int m_enabled;
   // BACKEND RELATED MEMBERS
   std::unique_ptr<Backend> m_model;
@@ -130,6 +132,8 @@ void nn_tilde_free(t_nn_tilde *x) {
 }
 
 void *nn_tilde_new(t_symbol *s, int argc, t_atom *argv) {
+  std::cout << "nn_tilde_new: entering function" << std::endl;
+
   t_nn_tilde *x = (t_nn_tilde *)pd_new(nn_tilde_class);
 
   x->m_model = std::make_unique<Backend>();
@@ -170,6 +174,8 @@ void *nn_tilde_new(t_symbol *s, int argc, t_atom *argv) {
     x->m_path = gensym(found_path.c_str());
   }
 
+
+  std::cout << "nn_tilde_new: gonna try to load the model" << std::endl;
   // TRY TO LOAD MODEL
   if (x->m_model->load(x->m_path->s_name)) {
     post("error during loading");
@@ -177,7 +183,9 @@ void *nn_tilde_new(t_symbol *s, int argc, t_atom *argv) {
   } else {
     // cout << "successfully loaded model" << endl;
   }
+  std::cout << "nn_tilde_new: loaded the model" << std::endl;
 
+  std::cout << "nn_tilde_new: setting model's method params" << std::endl;
   // GET MODEL'S METHOD PARAMETERS
   auto params = x->m_model->get_method_params(x->m_method->s_name);
   x->settable_attributes = x->m_model->get_settable_attributes();
@@ -188,6 +196,13 @@ void *nn_tilde_new(t_symbol *s, int argc, t_atom *argv) {
     params = x->m_model->get_method_params(x->m_method->s_name);
   }
 
+  std::cout << "nn_tilde_new: setting in and out dimensions" << std::endl;
+
+  std::cout << "nn_tilde_new: params.size() = " << params.size() << std::endl;
+  // Print out the params to stdout with their indexes
+  for (int i = 0; i < params.size(); i++) {
+    std::cout << "params[" << i << "] = " << params[i] << std::endl;
+  }
   x->m_in_dim = params[0];
   x->m_in_ratio = params[1];
   x->m_out_dim = params[2];
@@ -208,6 +223,7 @@ void *nn_tilde_new(t_symbol *s, int argc, t_atom *argv) {
     x->m_buffer_size = power_ceil(x->m_buffer_size);
   }
 
+  std::cout << "nn_tilde_new: creating inlets and outlets" << std::endl;
   // CREATE INLETS, OUTLETS and BUFFERS
   x->m_in_buffer =
       std::make_unique<circular_buffer<float, float>[]>(x->m_in_dim);
@@ -226,13 +242,21 @@ void *nn_tilde_new(t_symbol *s, int argc, t_atom *argv) {
     x->m_out_model.push_back(std::make_unique<float[]>(x->m_buffer_size));
   }
 
+  // Add registered attribute outlet here
+  x->m_outlet = outlet_new(&x->x_obj, &s_symbol); // Create extra outlet
+
   return (void *)x;
 }
 
-void nn_tilde_enable(t_nn_tilde *x, t_floatarg arg) { x->m_enabled = int(arg); }
-void nn_tilde_reload(t_nn_tilde *x) { x->m_model->reload(); }
+void nn_tilde_enable(t_nn_tilde *x, t_floatarg arg) {
+  x->m_enabled = int(arg);
+}
+void nn_tilde_reload(t_nn_tilde *x) {
+   x->m_model->reload();
+}
 
 void nn_tilde_set(t_nn_tilde *x, t_symbol *s, int argc, t_atom *argv) {
+  std::cout << "nn_tilde_set: entering function" << std::endl;
   if (argc < 2) {
     post("set needs at least 2 arguments [set argname argval1 ...)");
     return;
@@ -241,6 +265,7 @@ void nn_tilde_set(t_nn_tilde *x, t_symbol *s, int argc, t_atom *argv) {
 
   auto argname = argv[0].a_w.w_symbol->s_name;
   std::string argname_str = argname;
+  std::cout << "nn_tilde_set: argname = " << argname << std::endl;
 
   if (!std::count(x->settable_attributes.begin(), x->settable_attributes.end(),
                   argname_str)) {
@@ -250,16 +275,93 @@ void nn_tilde_set(t_nn_tilde *x, t_symbol *s, int argc, t_atom *argv) {
 
   for (int i(1); i < argc; i++) {
     if (argv[i].a_type == A_SYMBOL) {
+      std::cout << "nn_tilde_set: argv[i].a_w.w_symbol->s_name = " << argv[i].a_w.w_symbol->s_name << std::endl;
       attribute_args.push_back(argv[i].a_w.w_symbol->s_name);
     } else if (argv[i].a_type == A_FLOAT) {
+      std::cout << "nn_tilde_set: argv[i].a_w.w_float = " << argv[i].a_w.w_float << std::endl;
       attribute_args.push_back(std::to_string(argv[i].a_w.w_float));
     }
   }
   try {
+    std::cout << "nn_tilde_set: setting attribute '" << argname << "' to " << attribute_args << std::endl;
     x->m_model->set_attribute(argname, attribute_args);
   } catch (const std::exception &e) {
     post(e.what());
   }
+}
+
+void nn_tilde_get(t_nn_tilde *x, t_symbol *s) {
+  /* Returns the attribute as symbol */
+  std::cout << "nn_tilde_get: entering function" << std::endl;
+  std::cout << "nn_tilde_get: getting attribute '" << s->s_name << "'" << std::endl;
+  std::string attribute_value = x->m_model->get_attribute_as_string(s->s_name);
+  std::cout << "nn_tilde_get: attribute value: " << attribute_value << std::endl;
+  t_atom out_atom;
+  SETSYMBOL(&out_atom, gensym(attribute_value.c_str()));
+  outlet_anything(x->m_outlet, gensym("attribute"), 1, &out_atom);
+}
+
+// Get model layers and output through the designated outlet
+void nn_tilde_layers(t_nn_tilde *x) {
+  std::cout << "nn_tilde_layers: entering function" << std::endl;
+  std::vector<std::string> layers = x->m_model->get_available_layers();
+  std::cout << "nn_tilde_layers: layers.size() = " << layers.size() << std::endl;
+  // for (int i = 0; i < layers.size(); i++) {
+  //   std::cout << "nn_tilde_layers: layers[" << i << "] = " << layers[i] << std::endl;
+  // }
+
+  t_atom out_atom;
+  t_atom *out_atoms = new t_atom[layers.size()];
+  for (int i = 0; i < layers.size(); i++) {
+    SETSYMBOL(&out_atoms[i], gensym(layers[i].c_str()));
+  }
+
+  outlet_anything(x->m_outlet, gensym("layers"), layers.size(), out_atoms);
+  delete[] out_atoms;
+
+}
+
+// Get layer weights and output through the designated outlet
+void nn_tilde_get_weights(t_nn_tilde *x, t_symbol *s) {
+  std::cout << "nn_tilde_get_weights: entering function" << std::endl;
+  std::string layer_name = s->s_name;
+  std::cout << "nn_tilde_set_weights: layer_name = " << layer_name << std::endl;
+
+  std::vector<float> layer_weights = x->m_model->get_layer_weights(layer_name);
+  std::cout << "nn_tilde_get_weights: layer_weights.size() = " << layer_weights.size() << std::endl;
+
+  t_atom out_atom;
+  t_atom *out_atoms = new t_atom[layer_weights.size()];
+  for (int i = 0; i < layer_weights.size(); i++) {
+    SETFLOAT(&out_atoms[i], layer_weights[i]);
+  }
+
+  outlet_anything(x->m_outlet, gensym("layer"), layer_weights.size(), out_atoms);
+  delete[] out_atoms;
+}
+
+// Set layer weights
+void nn_tilde_set_weights(t_nn_tilde *x, t_symbol *s, int argc, t_atom *argv) {
+  std::cout << "nn_tilde_set_weights: entering function" << std::endl;
+
+  if (argv[0].a_type != A_SYMBOL) {
+    post("set_weights: first argument must be a layer name");
+    return;
+  }
+
+  std::string layer_name = atom_getsymbol(argv)->s_name;
+  std::vector<float> layer_weights;
+
+  std::cout << "nn_tilde_set_weights: layer_name = " << layer_name << std::endl;
+  // std::cout << "nn_tilde_set_weights: argv[0] = " << argv[0].a_w.w_float << std::endl;
+
+  for (int i = 0; i < argc; i++) {
+    if (argv[i].a_type == A_FLOAT) {
+      layer_weights.push_back(argv[i].a_w.w_float);
+    }
+  }
+  std::cout << "nn_tilde_set_weights: layer_weights.size() = " << layer_weights.size() << std::endl;
+  x->m_model->set_layer_weights(layer_name, layer_weights);
 }
 
 void startup_message() {
@@ -269,6 +371,7 @@ void startup_message() {
   startmessage += "torch ";
   startmessage += TORCH_VERSION;
   startmessage += " - 2023 - Antoine Caillon";
+  startmessage += " / 2024 - mod by Błażej Kotowski";
   post(startmessage.c_str());
 }
 
@@ -290,6 +393,16 @@ void nn_tilde_setup(void) {
                   A_NULL);
   class_addmethod(nn_tilde_class, (t_method)nn_tilde_set, gensym("set"),
                   A_GIMME, A_NULL);
+  // add method for retrieving a registered attribute
+  class_addmethod(nn_tilde_class, (t_method)nn_tilde_get, gensym("get"),
+                  A_SYMBOL, A_NULL);
+  class_addmethod(nn_tilde_class, (t_method)nn_tilde_layers, gensym("layers"),
+                  A_NULL);
+  class_addmethod(nn_tilde_class, (t_method)nn_tilde_get_weights, gensym("get_weights"),
+                  A_SYMBOL, A_NULL);
+  class_addmethod(nn_tilde_class, (t_method)nn_tilde_set_weights, gensym("set_weights"),
+                  A_GIMME, A_NULL);
+
   CLASS_MAINSIGNALIN(nn_tilde_class, t_nn_tilde, f);
 }
 }

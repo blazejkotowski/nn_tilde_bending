@@ -45,7 +45,7 @@ void Backend::perform(std::vector<float *> in_buffer,
   cat_tensor_in = cat_tensor_in.select(-1, -1);
   cat_tensor_in = cat_tensor_in.permute({1, 0, 2});
   // std::cout << cat_tensor_in.size(0) << ";" << cat_tensor_in.size(1) << ";" << cat_tensor_in.size(2) << std::endl;
-  // for (int i = 0; i < cat_tensor_in.size(1); i++ ) 
+  // for (int i = 0; i < cat_tensor_in.size(1); i++ )
     // std::cout << cat_tensor_in[0][i][0] << ";";
   // std::cout << std::endl;
 
@@ -284,6 +284,7 @@ std::string Backend::get_attribute_as_string(std::string attribute_name) {
 void Backend::set_attribute(std::string attribute_name,
                             std::vector<std::string> attribute_args) {
   // find setter
+  std::cout << "set_attribute: entering the function" << std::endl;
   std::string attribute_setter_name = "set_" + attribute_name;
   try {
     std::unique_lock<std::mutex> model_lock(m_model_mutex);
@@ -302,10 +303,12 @@ void Backend::set_attribute(std::string attribute_name,
     throw "parameters to set attribute " + attribute_name +
         " not found in model";
   }
+  std::cout << "set_attribute: found setter and params" << std::endl;
   // process inputs
   std::vector<c10::IValue> setter_inputs = {};
   for (int i = 0; i < setter_params.size(0); i++) {
     int current_id = setter_params[i].item().toInt();
+    std::cout << "current_id : " << current_id << std::endl;
     switch (current_id) {
     // bool case
     case 0:
@@ -317,6 +320,7 @@ void Backend::set_attribute(std::string attribute_name,
       break;
     // float case
     case 2:
+      std::cout << "to_float : " << attribute_args[i] << std::endl;
       setter_inputs.push_back(c10::IValue(to_float(attribute_args[i])));
       break;
     // str case
@@ -369,6 +373,54 @@ int Backend::get_higher_ratio() {
     higher_ratio = std::max(higher_ratio, max_ratio);
   }
   return higher_ratio;
+}
+
+std::vector<std::string> Backend::get_available_layers() {
+  std::vector<std::string> layers;
+  std::unique_lock<std::mutex> model_lock(m_model_mutex);
+  for (const auto &layer : m_model.named_parameters())
+    layers.push_back(layer.name);
+  model_lock.unlock();
+  return layers;
+}
+
+
+std::vector<float> Backend::get_layer_weights(std::string layer_name) {
+  std::unique_lock<std::mutex> model_lock(m_model_mutex);
+  // auto m_tensor = m_model.attr(layer_name).toTensor();
+  // torch::Tensor m_tensor = m_model.named_parameters()["layer"].contiguous().to(CPU);
+  torch::Tensor m_tensor;
+  for (const auto &layer : m_model.named_parameters())
+    if (layer.name == layer_name)
+      m_tensor = layer.value.contiguous().to(CPU);
+  model_lock.unlock();
+
+  auto m_weights = std::vector(m_tensor.data_ptr<float>(), m_tensor.data_ptr<float>()+m_tensor.numel());
+  return m_weights;
+}
+
+void Backend::set_layer_weights(std::string layer_name,
+                                std::vector<float> weights) {
+  std::cout << "set_layer_weights: entering the function" << std::endl;
+  std::unique_lock<std::mutex> model_lock(m_model_mutex);
+
+  for (const auto &layer : m_model.named_parameters())
+    if (layer.name == layer_name) {
+      std::cout << "first layer weight before copy " << layer.value[0] << std::endl;
+      {
+        torch::NoGradGuard no_grad;
+        // std::vector<int> sizes = layer.value.sizes().vec();
+        // TODO: Ensure the correct shape casting
+        layer.value.copy_(torch::from_blob(weights.data(), layer.value.sizes()));
+      }
+    }
+
+  std::cout << "set_layer_weights: weights copied" << std::endl;
+
+  for (const auto &layer : m_model.named_parameters())
+    if (layer.name == layer_name)
+      std::cout << "first layer weight after copy " << layer.value[0] << std::endl;
+  model_lock.unlock();
 }
 
 bool Backend::is_loaded() { return m_loaded; }

@@ -36,4 +36,8 @@ public:
   bool is_loaded();
   torch::jit::script::Module get_model() { return m_model; }
   void use_gpu(bool value);
+
+  std::vector<std::string> get_available_layers();
+  std::vector<float> get_layer_weights(std::string layer_name);
+  void set_layer_weights(std::string layer_name, std::vector<float> weights);
 };
