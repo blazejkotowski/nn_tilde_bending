@@ -41,7 +41,7 @@ jobs:
           rm -fr nn_tilde/CMakeFiles/ nn_tilde/*.cmake nn_tilde/Makefile
           tar -czvf nn_puredata_macOS_arm64.tar.gz nn_tilde
       - name: Upload binaries
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nn_tilde
           path: |
@@ -85,7 +85,7 @@ jobs:
           rm -fr nn_tilde/CMakeFiles/ nn_tilde/*.cmake nn_tilde/Makefile
           tar -czvf nn_puredata_macOS_x64.tar.gz nn_tilde
       - name: Upload binaries
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nn_tilde
           path: |
@@ -133,7 +133,7 @@ jobs:
           mv build/frontend/puredata/nn_tilde/Release/* nn_tilde/
           tar -czvf nn_puredata_windows_x64.tar.gz nn_tilde
       - name: Upload binaries
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nn_tilde
           path: |
