@@ -43,7 +43,7 @@ jobs:
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: nn_tilde
+          name: nn_tilde_mac_arm64
           path: |
             nn_max_msp_macOS_arm64.tar.gz
             nn_puredata_macOS_arm64.tar.gz
@@ -87,7 +87,7 @@ jobs:
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: nn_tilde
+          name: nn_tilde_mac_x64
           path: |
             nn_max_msp_macOS_x64.tar.gz
             nn_puredata_macOS_x64.tar.gz
@@ -135,7 +135,7 @@ jobs:
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: nn_tilde
+          name: nn_tilde_win_x64
           path: |
             nn_max_msp_windows_x64.tar.gz
             nn_puredata_windows_x64.tar.gz
