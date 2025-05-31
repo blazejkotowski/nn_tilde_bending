@@ -3,7 +3,7 @@ on:
   push:
     tags:
       - "v*"
-
+  workflow_dispatch:
 jobs:
   osx-arm64-build:
     runs-on: macos-latest
