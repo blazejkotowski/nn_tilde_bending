@@ -32,7 +32,9 @@ public:
   MIN_DESCRIPTION{
       "Multi-channel interface for deep learning models (batch version)"};
   MIN_TAGS{"audio, deep learning, ai"};
-  MIN_AUTHOR{"Antoine Caillon, Axel Chemla--Romeu-Santos"};
+  MIN_AUTHOR{
+      "Antoine Caillon, Axel Chemla--Romeu-Santos, mod by Błażej Kotowski, "
+      "Leonardo Foletto"};
 
   mc_bnn_tilde(const atoms &args = {});
   ~mc_bnn_tilde();
@@ -78,13 +80,82 @@ public:
                               "Name of the method to call during synthesis."};
   argument<int> batches_arg{this, "batches", "Number of batches"};
 
-  argument<int> buffer_arg{
-      this, "buffer size",
-      "Size of the internal buffer (can't be lower than the method's ratio)."};
+  argument<int> buffer_arg{this, "buffer size",
+                           "Size of the internal buffer (can't be lower than "
+                           "the method's ratio)."};
 
   // ENABLE / DISABLE ATTRIBUTE
   attribute<bool> enable{this, "enable", true,
                          description{"Enable / disable tensor computation"}};
+
+  // NN BENDING MOD
+  outlet<> m_info_outlet{this, "info", "Info outlet for layers and weights"};
+
+  // Message handlers for layers and weights
+  message<> layers{
+      this, "layers", "Get available model layers",
+      [this](const c74::min::atoms &args, const int inlet) -> c74::min::atoms {
+        if (!m_model->is_loaded()) {
+          cerr << "Model not initialized" << endl;
+          return {};
+        }
+        std::vector<std::string> layers = m_model->get_available_layers();
+        atoms out_atoms;
+        out_atoms.push_back("layers");
+        for (const auto &layer : layers) {
+          out_atoms.push_back(layer);
+        }
+        m_info_outlet.send(out_atoms);
+        return {};
+      }};
+
+  message<> get_weights{
+      this, "get_weights", "Get weights for a specific layer",
+      [this](const c74::min::atoms &args, const int inlet) -> c74::min::atoms {
+        if (!m_model->is_loaded()) {
+          cerr << "Model not initialized" << endl;
+          return {};
+        }
+        if (args.size() < 1) {
+          cerr << "Layer name required" << endl;
+          return {};
+        }
+        std::string layer_name = args[0];
+        std::vector<float> weights = m_model->get_layer_weights(layer_name);
+        atoms out_atoms;
+        out_atoms.push_back("layer");
+        for (const auto &weight : weights) {
+          out_atoms.push_back(weight);
+        }
+        m_info_outlet.send(out_atoms);
+        return {};
+      }};
+
+  message<> set_weights{
+      this, "set_weights", "Set weights for a specific layer",
+      [this](const c74::min::atoms &args, const int inlet) -> c74::min::atoms {
+        if (!m_model->is_loaded()) {
+          cerr << "Model not initialized" << endl;
+          return {};
+        }
+        if (args.size() < 2) {
+          cerr << "Layer name and weights required" << endl;
+          return {};
+        }
+        std::string layer_name = args[0];
+        std::vector<float> weights;
+        for (size_t i = 1; i < args.size(); i++) {
+          if (args[i].type() == message_type::float_argument) {
+            weights.push_back(float(args[i]));
+          }
+        }
+        try {
+          m_model->set_layer_weights(layer_name, weights);
+        } catch (const std::exception &e) {
+          cerr << "Error setting weights: " << e.what() << endl;
+        }
+        return {};
+      }};
 
   // BOOT STAMP
   message<> maxclass_setup{
@@ -92,7 +163,9 @@ public:
       [this](const c74::min::atoms &args, const int inlet) -> c74::min::atoms {
         // make stamp
         cout << "nn~ " << VERSION << " - torch " << TORCH_VERSION
-             << " - 2023 - Antoine Caillon & Axel Chemla--Romeu-Santos" << endl;
+             << " - 2023 - Antoine Caillon & Axel Chemla--Romeu-Santos, mod by "
+                "Błażej Kotowski, Leonardo Foletto"
+             << endl;
         cout << "visit https://caillonantoine.github.io" << endl;
         // mc handle
         c74::max::t_class *c = args[0];
@@ -386,7 +459,8 @@ void mc_bnn_tilde::perform(audio_bundle input, audio_bundle output) {
     for (int d(0); d < m_in_dim; d++) {
       auto in = input.samples(b * m_in_dim + d);
       m_in_buffer[d * get_batches() + b].put(in, vec_size);
-      std::cout << "populate batch " << b << "; channel " << d << " into buffer" <<  d * get_batches() + b << "; value : " << in[0] << std::endl;
+      std::cout << "populate batch " << b << "; channel " << d << " into buffer"
+                << d * get_batches() + b << "; value : " << in[0] << std::endl;
     }
   }
 

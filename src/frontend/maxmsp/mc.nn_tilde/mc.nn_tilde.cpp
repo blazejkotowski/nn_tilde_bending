@@ -31,7 +31,9 @@ class mc_nn_tilde : public object<mc_nn_tilde>, public mc_operator<> {
 public:
   MIN_DESCRIPTION{"Multi-channel interface for deep learning models"};
   MIN_TAGS{"audio, deep learning, ai"};
-  MIN_AUTHOR{"Antoine Caillon, Axel Chemla--Romeu-Santos"};
+  MIN_AUTHOR{
+      "Antoine Caillon, Axel Chemla--Romeu-Santos, mod by Błażej Kotowski, "
+      "Leonardo Foletto"};
 
   mc_nn_tilde(const atoms &args = {});
   ~mc_nn_tilde();
@@ -83,13 +85,83 @@ public:
   attribute<bool> enable{this, "enable", true,
                          description{"Enable / disable tensor computation"}};
 
+  // NN BENDING MOD
+  outlet<> m_info_outlet{this, "info", "Info outlet for layers and weights"};
+
+  message<> layers{
+      this, "layers", "Get available model layers",
+      [this](const c74::min::atoms &args, const int inlet) -> c74::min::atoms {
+        if (!m_model->is_loaded()) {
+          cerr << "Model not initialized" << endl;
+          return {};
+        }
+        std::vector<std::string> layers = m_model->get_available_layers();
+        atoms out_atoms;
+        out_atoms.push_back("layers");
+        for (const auto &layer : layers) {
+          out_atoms.push_back(layer);
+        }
+        m_info_outlet.send(out_atoms);
+        return {};
+      }};
+
+  message<> get_weights{
+      this, "get_weights", "Get weights for a specific layer",
+      [this](const c74::min::atoms &args, const int inlet) -> c74::min::atoms {
+        if (!m_model->is_loaded()) {
+          cerr << "Model not initialized" << endl;
+          return {};
+        }
+        if (args.size() < 1) {
+          cerr << "Layer name required" << endl;
+          return {};
+        }
+        std::string layer_name = args[0];
+        std::vector<float> weights = m_model->get_layer_weights(layer_name);
+        atoms out_atoms;
+        out_atoms.push_back("layer");
+        for (const auto &weight : weights) {
+          out_atoms.push_back(weight);
+        }
+        m_info_outlet.send(out_atoms);
+        return {};
+      }};
+
+  message<> set_weights{
+      this, "set_weights", "Set weights for a specific layer",
+      [this](const c74::min::atoms &args, const int inlet) -> c74::min::atoms {
+        if (!m_model->is_loaded()) {
+          cerr << "Model not initialized" << endl;
+          return {};
+        }
+        if (args.size() < 2) {
+          cerr << "Layer name and weights required" << endl;
+          return {};
+        }
+        std::string layer_name = args[0];
+        std::vector<float> weights;
+        for (size_t i = 1; i < args.size(); i++) {
+          if (args[i].type() == message_type::float_argument) {
+            weights.push_back(float(args[i]));
+          }
+        }
+        try {
+          m_model->set_layer_weights(layer_name, weights);
+        } catch (const std::exception &e) {
+          cerr << "Error setting weights: " << e.what() << endl;
+        }
+        return {};
+      }};
+
   // BOOT STAMP
   message<> maxclass_setup{
       this, "maxclass_setup",
       [this](const c74::min::atoms &args, const int inlet) -> c74::min::atoms {
         // make stamp
         cout << "nn~ " << VERSION << " - torch " << TORCH_VERSION
-             << " - 2023 - Antoine Caillon & Axel Chemla--Romeu-Santos" << endl;
+             << " - 2023 - Antoine Caillon & Axel Chemla--Romeu-Santos, mod by "
+                "Błażej Kotowski, Leonardo Foletto"
+             << endl;
         cout << "visit https://caillonantoine.github.io" << endl;
         // mc handle
         c74::max::t_class *c = args[0];
@@ -175,16 +247,15 @@ void model_perform(mc_nn_tilde *mc_nn_instance) {
       mc_nn_instance->m_method, mc_nn_instance->get_batches());
 }
 
-void check_loop_buffers(mc_nn_tilde *mc_nn_instance, std::vector<float *> &in_model, std::vector<float *> &out_model) {
-  if (mc_nn_instance->m_in_model.size() != in_model.size())
-  {
+void check_loop_buffers(mc_nn_tilde *mc_nn_instance,
+                        std::vector<float *> &in_model,
+                        std::vector<float *> &out_model) {
+  if (mc_nn_instance->m_in_model.size() != in_model.size()) {
     in_model.clear();
     for (auto &ptr : mc_nn_instance->m_in_model)
       in_model.push_back(ptr.get());
-
   }
-  if (mc_nn_instance->m_out_model.size() != out_model.size())
-  {
+  if (mc_nn_instance->m_out_model.size() != out_model.size()) {
     out_model.clear();
     for (auto &ptr : mc_nn_instance->m_out_model)
       out_model.push_back(ptr.get());
