@@ -32,7 +32,9 @@ public:
   MIN_DESCRIPTION{
       "Multi-channel interface for deep learning models (batch version)"};
   MIN_TAGS{"audio, deep learning, ai"};
-  MIN_AUTHOR{"Antoine Caillon, Axel Chemla--Romeu-Santos"};
+  MIN_AUTHOR{
+      "Antoine Caillon, Axel Chemla--Romeu-Santos, mod by Błażej Kotowski, "
+      "Leonardo Foletto"};
 
   mc_bnn_tilde(const atoms &args = {});
   ~mc_bnn_tilde();
@@ -78,9 +80,9 @@ public:
                               "Name of the method to call during synthesis."};
   argument<int> batches_arg{this, "batches", "Number of batches"};
 
-  argument<int> buffer_arg{
-      this, "buffer size",
-      "Size of the internal buffer (can't be lower than the method's ratio)."};
+  argument<int> buffer_arg{this, "buffer size",
+                           "Size of the internal buffer (can't be lower than "
+                           "the method's ratio)."};
 
   // ENABLE / DISABLE ATTRIBUTE
   attribute<bool> enable{this, "enable", true,
@@ -161,7 +163,9 @@ public:
       [this](const c74::min::atoms &args, const int inlet) -> c74::min::atoms {
         // make stamp
         cout << "nn~ " << VERSION << " - torch " << TORCH_VERSION
-             << " - 2023 - Antoine Caillon & Axel Chemla--Romeu-Santos" << endl;
+             << " - 2023 - Antoine Caillon & Axel Chemla--Romeu-Santos, mod by "
+                "Błażej Kotowski, Leonardo Foletto"
+             << endl;
         cout << "visit https://caillonantoine.github.io" << endl;
         // mc handle
         c74::max::t_class *c = args[0];

@@ -27,7 +27,8 @@ class nn : public object<nn>, public vector_operator<> {
 public:
   MIN_DESCRIPTION{"Interface for deep learning models"};
   MIN_TAGS{"audio, deep learning, ai"};
-  MIN_AUTHOR{"Antoine Caillon & Axel Chemla--Romeu-Santos"};
+  MIN_AUTHOR{"Antoine Caillon & Axel Chemla--Romeu-Santos, mod by Błażej "
+             "Kotowski, Leonardo Foletto"};
 
   nn(const atoms &args = {});
   ~nn();
@@ -165,7 +166,9 @@ public:
       this, "maxclass_setup",
       [this](const c74::min::atoms &args, const int inlet) -> c74::min::atoms {
         cout << "nn~ " << VERSION << " - torch " << TORCH_VERSION
-             << " - 2023 - Antoine Caillon & Axel Chemla--Romeu-Santos" << endl;
+             << " - 2023 - Antoine Caillon & Axel Chemla--Romeu-Santos, mod by "
+                "Błażej Kotowski, Leonardo Foletto"
+             << endl;
         cout << "visit https://caillonantoine.github.io" << endl;
         return {};
       }};

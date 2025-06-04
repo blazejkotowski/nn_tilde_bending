@@ -31,7 +31,9 @@ class mc_nn_tilde : public object<mc_nn_tilde>, public mc_operator<> {
 public:
   MIN_DESCRIPTION{"Multi-channel interface for deep learning models"};
   MIN_TAGS{"audio, deep learning, ai"};
-  MIN_AUTHOR{"Antoine Caillon, Axel Chemla--Romeu-Santos"};
+  MIN_AUTHOR{
+      "Antoine Caillon, Axel Chemla--Romeu-Santos, mod by Błażej Kotowski, "
+      "Leonardo Foletto"};
 
   mc_nn_tilde(const atoms &args = {});
   ~mc_nn_tilde();
@@ -157,7 +159,9 @@ public:
       [this](const c74::min::atoms &args, const int inlet) -> c74::min::atoms {
         // make stamp
         cout << "nn~ " << VERSION << " - torch " << TORCH_VERSION
-             << " - 2023 - Antoine Caillon & Axel Chemla--Romeu-Santos" << endl;
+             << " - 2023 - Antoine Caillon & Axel Chemla--Romeu-Santos, mod by "
+                "Błażej Kotowski, Leonardo Foletto"
+             << endl;
         cout << "visit https://caillonantoine.github.io" << endl;
         // mc handle
         c74::max::t_class *c = args[0];
